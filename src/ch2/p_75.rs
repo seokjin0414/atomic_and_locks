@@ -1,15 +1,5 @@
-use std::{
-    sync::atomic::{AtomicUsize, AtomicU64},
-    thread,
-    time::Duration
-};
-use std::cmp::max;
+use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering::Relaxed;
-use std::time::Instant;
-
-fn main() {
-
-}
 
 fn get_key() -> u64 {
     static KEY: AtomicU64 = AtomicU64::new(0);
