@@ -21,9 +21,9 @@ fn f() {
 }
 
 fn main() {
-   thread::scope(|s| {
-       for _ in 0..100 {
-           s.spawn(f);
-       }
-   })
+    thread::scope(|s| {
+        for _ in 0..100 {
+            s.spawn(f);
+        }
+    })
 }
