@@ -23,7 +23,3 @@ fn get_data() -> &'static Data {
     }
     unsafe { &*p }
 }
-
-fn main() {
-
-}
