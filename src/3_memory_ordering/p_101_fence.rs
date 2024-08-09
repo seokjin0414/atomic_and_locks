@@ -16,7 +16,7 @@ static READY: [AtomicBool; 10] = [ATOMIC_FALSE; 10];
 fn main() {
     for i in 0..10 {
         thread::spawn(move || {
-           let data = some_calculation(i);
+            let data = some_calculation(i);
             unsafe { DATA[i] = data };
             READY[i].store(true, Release);
         });
@@ -38,4 +38,3 @@ fn some_calculation(n: usize) -> u64 {
     println!("calculation: {}", n);
     n as u64
 }
-
