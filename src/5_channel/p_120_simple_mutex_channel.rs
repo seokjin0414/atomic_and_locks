@@ -1,11 +1,5 @@
-use std::{
-    sync::atomic::{AtomicUsize, AtomicU64, AtomicBool},
-    thread,
-    time::Duration
-};
 use std::collections::VecDeque;
 use std::sync::{Condvar, Mutex};
-use std::time::Instant;
 
 pub struct Channel<T> {
     queue: Mutex<VecDeque<T>>,
@@ -35,8 +29,3 @@ impl<T> Channel<T> {
         }
     }
 }
-
-fn main() {
-}
-
-
