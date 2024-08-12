@@ -1,13 +1,6 @@
-use std::{
-    sync::atomic::{AtomicUsize, AtomicU64, AtomicBool},
-    thread,
-    time::Duration
-};
 use std::cell::UnsafeCell;
-use std::collections::VecDeque;
 use std::mem::MaybeUninit;
-use std::sync::{Condvar, Mutex};
-use std::sync::atomic::Ordering::{Acquire, Release};
+use std::sync::atomic::AtomicBool;
 
 pub struct Channel<T> {
     message: UnsafeCell<MaybeUninit<T>>,
@@ -15,7 +8,7 @@ pub struct Channel<T> {
 }
 
 unsafe impl<T> Sync for Channel<T>
-    where T: Send {}
+where T: Send {}
 
 impl<T> Channel<T> {
     pub const fn new() -> Self {
@@ -39,8 +32,3 @@ impl<T> Channel<T> {
         (*self.message.get()).assume_init_read()
     }
 }
-
-fn main() {
-}
-
-
