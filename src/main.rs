@@ -7,71 +7,69 @@ use std::cell::UnsafeCell;
 use std::collections::VecDeque;
 use std::mem::MaybeUninit;
 use std::sync::{Condvar, Mutex};
+use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+
+const EMPTY: u8 = 0;
+const WRITING: u8 = 1;
+const READY: u8 = 2;
+const READING: u8 = 3;
 
 pub struct Channel<T> {
     message: UnsafeCell<MaybeUninit<T>>,
-    in_use: AtomicBool,
-    ready: AtomicBool,
+    state: AtomicU8,
 }
 
-unsafe impl<T> Sync for Channel<T>
-    where T: Send {}
+unsafe impl<T: Send> Sync for Channel<T> {}
 
 impl<T> Channel<T> {
     pub const fn new() -> Self {
         Self {
             message: UnsafeCell::new(MaybeUninit::uninit()),
-            in_use: AtomicBool::new(false),
-            ready: AtomicBool::new(false),
+            state: AtomicU8::new(EMPTY),
         }
     }
 
-    // message 2개 이상인 경우 panic
     pub fn send(&self, message: T) {
-        if self.in_use.swap(true, Relaxed) {
+        if self
+            .state
+            .compare_exchange(EMPTY, WRITING, Relaxed, Relaxed)
+            .is_err()
+        {
             panic!("cant send more than one message!");
         }
+
         unsafe { (*self.message.get()).write(message) };
-        self.ready.store(true, Release);
+        self.state.store(READY, Release);
     }
 
     pub fn is_ready(&self) -> bool {
-        self.ready.load(Acquire)
+        self.state.load(Relaxed) == READY
     }
 
-    // ready() 로 먼저 확인
     pub fn receive(&self) -> T {
-        if !self.ready.swap(false, Acquire) {
-            panic!("no message available.");
+        if self
+            .state
+            .compare_exchange(READY, READING, Acquire, Relaxed)
+            .is_err()
+        {
+            panic!("no message available!");
         }
-        // 안전함: ready 플래그 확인후 초기화
+
         unsafe { (*self.message.get()).assume_init_read() }
     }
 }
 
 impl<T> Drop for Channel<T> {
     fn drop(&mut self) {
-        if *self.ready.get_mut() {
+        if *self.state.get_mut() == READY {
             unsafe { self.message.get_mut().assume_init_drop() }
         }
     }
 }
 
 fn main() {
-    let channel = Channel::new();
-    let t = thread::current();
 
-    thread::scope(|s| {
-        s.spawn(|| {
-            channel.send("hoho");
-            t.unpark();
-        });
-        while !channel.is_ready() {
-            thread::park();
-        }
-        assert_eq!(channel.receive(), "hoho");
-    });
 }
 
 
