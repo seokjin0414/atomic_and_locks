@@ -1,14 +1,8 @@
-use std::{
-    sync::atomic::{AtomicUsize, AtomicU64, AtomicBool},
-    thread,
-    time::Duration
-};
 use std::cell::UnsafeCell;
-use std::collections::VecDeque;
 use std::mem::MaybeUninit;
-use std::sync::{Arc, Condvar, Mutex};
-use std::sync::atomic::AtomicU8;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+use std::thread;
 
 pub struct Channel<T> {
     message: UnsafeCell<MaybeUninit<T>>,
@@ -84,17 +78,3 @@ fn main() {
         assert_eq!(receiver.receive(), "hi");
     })
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
