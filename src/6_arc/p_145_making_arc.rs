@@ -1,18 +1,7 @@
-use std::{
-    sync::atomic::{AtomicUsize, AtomicU64, AtomicBool},
-    thread,
-    time::Duration
-};
-use std::cell::UnsafeCell;
-use std::collections::VecDeque;
-use std::marker::PhantomData;
-use std::mem::MaybeUninit;
 use std::ops::Deref;
 use std::ptr::NonNull;
-use std::sync::{Arc, Condvar, Mutex};
-use std::sync::atomic::{fence, AtomicU8};
+use std::sync::atomic::{fence, AtomicUsize};
 use std::sync::atomic::Ordering::{Acquire, Relaxed, Release};
-use std::thread::Thread;
 
 struct ArcData<T> {
     ref_count: AtomicUsize,
@@ -72,20 +61,3 @@ impl<T> Drop for ArcMake<T> {
         }
     }
 }
-
-fn main() {
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
