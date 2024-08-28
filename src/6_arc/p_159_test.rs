@@ -1,18 +1,7 @@
-use std::{
-    sync::atomic::{AtomicUsize, AtomicU64, AtomicBool},
-    thread,
-    time::Duration
-};
 use std::cell::UnsafeCell;
-use std::collections::VecDeque;
-use std::marker::PhantomData;
-use std::mem::MaybeUninit;
-use std::ops::Deref;
 use std::ptr::NonNull;
-use std::sync::{Arc, Condvar, Mutex};
-use std::sync::atomic::{fence, AtomicU8};
-use std::sync::atomic::Ordering::{Acquire, Relaxed, Release};
-use std::thread::Thread;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::Relaxed;
 
 struct ArcData<T> {
     data_ref_count: AtomicUsize,
@@ -43,7 +32,7 @@ impl<T> ArcMake<T> {
             },
         }
     }
-    
+
     pub fn get_mut(arc: &mut Self) -> Option<&mut T> {
         if arc.weak.data().alloc_ref_count.load(Relaxed) == 1 {
             fence(Acquire);
@@ -68,7 +57,7 @@ impl<T> WeakMake<T> {
     fn data(&self) -> &ArcData<T> {
         unsafe { self.ptr.as_ref() }
     }
-    
+
     pub fn upgrade(&self) -> Option<ArcMake<T>> {
         let mut n = self.data().data_ref_count.load(Relaxed );
 
@@ -77,11 +66,11 @@ impl<T> WeakMake<T> {
                 return  None;
             }
             assert!(n < usize::MAX);
-            if let Err(e) = 
+            if let Err(e) =
                 self.data()
                     .data_ref_count
-                    .compare_exchange_weak(n, n + 1, Relaxed, Relaxed) 
-            { 
+                    .compare_exchange_weak(n, n + 1, Relaxed, Relaxed)
+            {
                 n = e;
                 continue;
             }
@@ -113,8 +102,8 @@ impl<T> Clone for WeakMake<T> {
 impl<T> Clone for ArcMake<T> {
     fn clone(&self) -> Self {
         let weak = self.weak.clone();
-        
-        if weak.data().data_ref_count.fetch_add(1, Relaxed) > usize::MAX / 2 { 
+
+        if weak.data().data_ref_count.fetch_add(1, Relaxed) > usize::MAX / 2 {
             std::process::abort();
         }
         ArcMake { weak }
@@ -140,7 +129,7 @@ impl<T> Drop for ArcMake<T> {
             // 안정함: data의 레퍼런스 카운터가 0 이므로
             // 이제 data 접근 불가능
             unsafe {
-                *ptr = None;   
+                *ptr = None;
             }
         }
     }
@@ -185,15 +174,3 @@ fn test() {
     assert_eq!(NUM_DROPS.load(Relaxed), 1);
     assert!(z.upgrade().is_none());
 }
-
-
-
-
-
-
-
-
-
-
-
-
