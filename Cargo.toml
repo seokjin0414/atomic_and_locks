@@ -13,3 +13,5 @@ strip = true
 panic = "abort"
 
 [dependencies]
+itertools = "0.13.0"
+uuid = { version = "1.11.0", features = ["v4"] }

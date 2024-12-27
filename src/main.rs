@@ -1,18 +1,18 @@
-use std::{
-    sync::atomic::{AtomicUsize, AtomicU64, AtomicBool},
-    thread,
-    time::Duration
-};
 use std::cell::UnsafeCell;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::ops::Deref;
 use std::ptr::NonNull;
-use std::sync::{Arc, Condvar, Mutex};
-use std::sync::atomic::{fence, AtomicU8};
 use std::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+use std::sync::atomic::{fence, AtomicU8};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread::Thread;
+use std::{
+    sync::atomic::{AtomicBool, AtomicU64, AtomicUsize},
+    thread,
+    time::Duration,
+};
 
 struct ArcData<T> {
     data_ref_count: AtomicUsize,
@@ -43,7 +43,7 @@ impl<T> ArcMake<T> {
             },
         }
     }
-    
+
     pub fn get_mut(arc: &mut Self) -> Option<&mut T> {
         if arc.weak.data().alloc_ref_count.load(Relaxed) == 1 {
             fence(Acquire);
@@ -68,20 +68,20 @@ impl<T> WeakMake<T> {
     fn data(&self) -> &ArcData<T> {
         unsafe { self.ptr.as_ref() }
     }
-    
+
     pub fn upgrade(&self) -> Option<ArcMake<T>> {
-        let mut n = self.data().data_ref_count.load(Relaxed );
+        let mut n = self.data().data_ref_count.load(Relaxed);
 
         loop {
             if n == 0 {
-                return  None;
+                return None;
             }
             assert!(n < usize::MAX);
-            if let Err(e) = 
+            if let Err(e) =
                 self.data()
                     .data_ref_count
-                    .compare_exchange_weak(n, n + 1, Relaxed, Relaxed) 
-            { 
+                    .compare_exchange_weak(n, n + 1, Relaxed, Relaxed)
+            {
                 n = e;
                 continue;
             }
@@ -97,7 +97,7 @@ impl<T> Deref for ArcMake<T> {
         let ptr = self.weak.data().data.get();
         // 안전함 Arc가 data를 가리키고 있어
         // data는 존재하고 공유될수 있다
-        unsafe {(*ptr).as_ref().unwrap() }
+        unsafe { (*ptr).as_ref().unwrap() }
     }
 }
 
@@ -113,8 +113,8 @@ impl<T> Clone for WeakMake<T> {
 impl<T> Clone for ArcMake<T> {
     fn clone(&self) -> Self {
         let weak = self.weak.clone();
-        
-        if weak.data().data_ref_count.fetch_add(1, Relaxed) > usize::MAX / 2 { 
+
+        if weak.data().data_ref_count.fetch_add(1, Relaxed) > usize::MAX / 2 {
             std::process::abort();
         }
         ArcMake { weak }
@@ -140,13 +140,53 @@ impl<T> Drop for ArcMake<T> {
             // 안정함: data의 레퍼런스 카운터가 0 이므로
             // 이제 data 접근 불가능
             unsafe {
-                *ptr = None;   
+                *ptr = None;
             }
         }
     }
 }
 
 fn main() {
+    use itertools::Itertools;
+    use std::collections::BTreeMap;
+    use std::time::Instant;
+
+    #[derive(Clone)]
+    struct UserSolutionHistoryQ {
+        userId: uuid::Uuid,
+        data: String,
+    }
+
+    let data_sizes = [10, 50, 100, 1_000, 5_000, 10_000, 100_000, 1_000_000]; // 데이터 크기
+
+    for &size in &data_sizes {
+        println!("\n데이터 크기: {}", size);
+
+        // 데이터 생성
+        let user_history_q: Vec<UserSolutionHistoryQ> = (0..size)
+            .map(|i| UserSolutionHistoryQ {
+                userId: uuid::Uuid::new_v4(),
+                data: format!("data_{}", i),
+            })
+            .collect();
+
+        // Fold 방식
+        let start = Instant::now();
+        let _map_fold: BTreeMap<uuid::Uuid, Vec<UserSolutionHistoryQ>> =
+            user_history_q.iter().fold(BTreeMap::new(), |mut map, q| {
+                map.entry(q.userId).or_default().push(q.clone());
+                map
+            });
+        println!("Fold 시간: {:?}", start.elapsed());
+
+        // itertools 방식
+        let start = Instant::now();
+        let _map_itertools: HashMap<uuid::Uuid, Vec<UserSolutionHistoryQ>> = user_history_q
+            .iter()
+            .cloned()
+            .into_group_map_by(|q| q.userId);
+        println!("itertools 시간: {:?}", start.elapsed());
+    }
 }
 
 #[test]
@@ -185,15 +225,3 @@ fn test() {
     assert_eq!(NUM_DROPS.load(Relaxed), 1);
     assert!(z.upgrade().is_none());
 }
-
-
-
-
-
-
-
-
-
-
-
-
